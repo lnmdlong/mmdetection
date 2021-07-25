@@ -24,6 +24,8 @@ def digit_version(version_str):
             patch_version = x.split('rc')
             digit_version.append(int(patch_version[0]) - 1)
             digit_version.append(int(patch_version[1]))
+        elif x.find('+') != -1:
+            digit_version.append(int(x.split('+')[0]))
     return digit_version
 
 
