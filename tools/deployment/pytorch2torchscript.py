@@ -141,6 +141,7 @@ def pytorch2libtorch(model,
     traced_model.save(output_file)
     print('Successfully exported TorchScript model: {}'.format(output_file))
 
+    print(model(mm_inputs['img'], mm_inputs['img_metas'], ))
 
 def parse_args():
     parser = argparse.ArgumentParser(

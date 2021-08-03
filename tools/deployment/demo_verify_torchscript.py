@@ -24,6 +24,7 @@ def parse_args():
 
 def postprocess(outputs, num_classes):
     num_imgs = len(outputs['bboxes'])
+    print(outputs['bboxes'])
     bbox_results = [bbox2result(outputs['bboxes'][i],
                                 outputs['labels'][i],
                                 num_classes)
