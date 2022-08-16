@@ -116,6 +116,7 @@ def inference_detector(model, imgs):
     cfg.data.test.pipeline = replace_ImageToTensor(cfg.data.test.pipeline)
     test_pipeline = Compose(cfg.data.test.pipeline)
 
+    from time import time
     datas = []
     for img in imgs:
         # prepare data
@@ -126,7 +127,9 @@ def inference_detector(model, imgs):
             # add information into dict
             data = dict(img_info=dict(filename=img), img_prefix=None)
         # build the data pipeline
+        start = time()
         data = test_pipeline(data)
+        print("mmdet preprocess time ellapsed:", (time() - start) * 1000)
         datas.append(data)
 
     data = collate(datas, samples_per_gpu=len(imgs))
@@ -144,7 +147,9 @@ def inference_detector(model, imgs):
 
     # forward the model
     with torch.no_grad():
+        start = time()
         results = model(return_loss=False, rescale=True, **data)
+        print("mmdet model time ellapsed:", (time() - start) * 1000)
 
     if not is_batch:
         return results[0]
