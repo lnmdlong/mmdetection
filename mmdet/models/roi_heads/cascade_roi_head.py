@@ -11,6 +11,7 @@ from ..builder import HEADS, build_head, build_roi_extractor
 from .base_roi_head import BaseRoIHead
 from .test_mixins import BBoxTestMixin, MaskTestMixin
 
+tiacc_time_count = True
 
 @HEADS.register_module()
 class CascadeRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
@@ -339,6 +340,9 @@ class CascadeRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
 
             return results
 
+        if tiacc_time_count:
+            from time import time
+            start = time()
         for i in range(self.num_stages):
             bbox_results = self._bbox_forward(i, x, rois)
 
@@ -370,6 +374,8 @@ class CascadeRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                             rois[j], bbox_label, bbox_pred[j], img_metas[j])
                         refine_rois_list.append(refined_rois)
                 rois = torch.cat(refine_rois_list)
+        if tiacc_time_count:
+            print('roi bbox total time:', (time() - start) * 1000)
 
         # average scores of each image by stages
         cls_score = [
@@ -400,6 +406,8 @@ class CascadeRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         ms_bbox_result['ensemble'] = bbox_results
 
         if self.with_mask:
+            if tiacc_time_count:
+                start_mask = time()
             if all(det_bbox.shape[0] == 0 for det_bbox in det_bboxes):
                 mask_classes = self.mask_head[-1].num_classes
                 segm_results = [[[] for _ in range(mask_classes)]
@@ -419,14 +427,22 @@ class CascadeRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                 num_mask_rois_per_img = tuple(
                     _bbox.size(0) for _bbox in _bboxes)
                 aug_masks = []
+                if tiacc_time_count:
+                    start = time()
                 for i in range(self.num_stages):
                     mask_results = self._mask_forward(i, x, mask_rois)
                     mask_pred = mask_results['mask_pred']
                     # split batch mask prediction back to each image
                     mask_pred = mask_pred.split(num_mask_rois_per_img, 0)
+                    # aug_masks.append([
+                    #     m.sigmoid().cpu().detach().numpy() for m in mask_pred
+                    # ])
+                    # change aug_masks output to gpu tensor
                     aug_masks.append([
-                        m.sigmoid().cpu().detach().numpy() for m in mask_pred
+                        m.sigmoid() for m in mask_pred
                     ])
+                if tiacc_time_count:
+                    print('roi mask _mask_forward time:', (time() - start) * 1000)
 
                 # apply mask post-processing to each image individually
                 segm_results = []
@@ -437,15 +453,24 @@ class CascadeRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                              for _ in range(self.mask_head[-1].num_classes)])
                     else:
                         aug_mask = [mask[i] for mask in aug_masks]
+                        if tiacc_time_count:
+                            start = time()
                         merged_masks = merge_aug_masks(
                             aug_mask, [[img_metas[i]]] * self.num_stages,
                             rcnn_test_cfg)
+                        if tiacc_time_count:
+                            print('roi mask merge_aug_masks time:', (time() - start) * 1000)
+                            start = time()
                         segm_result = self.mask_head[-1].get_seg_masks(
                             merged_masks, _bboxes[i], det_labels[i],
                             rcnn_test_cfg, ori_shapes[i], scale_factors[i],
                             rescale)
+                        if tiacc_time_count:
+                            print('roi mask get_seg_masks time:', (time() - start) * 1000)
                         segm_results.append(segm_result)
             ms_segm_result['ensemble'] = segm_results
+            if tiacc_time_count:
+                print('roi mask part total time:', (time() - start_mask) * 1000)
 
         if self.with_mask:
             results = list(

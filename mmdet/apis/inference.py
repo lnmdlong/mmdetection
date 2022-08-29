@@ -13,6 +13,7 @@ from mmdet.datasets import replace_ImageToTensor
 from mmdet.datasets.pipelines import Compose
 from mmdet.models import build_detector
 
+tiacc_time_count = True
 
 def init_detector(config, checkpoint=None, device='cuda:0', cfg_options=None):
     """Initialize a detector from config file.
@@ -127,9 +128,11 @@ def inference_detector(model, imgs):
             # add information into dict
             data = dict(img_info=dict(filename=img), img_prefix=None)
         # build the data pipeline
-        start = time()
+        if tiacc_time_count:
+            start = time()
         data = test_pipeline(data)
-        print("mmdet preprocess time ellapsed:", (time() - start) * 1000)
+        if tiacc_time_count:
+            print("mmdet preprocess time ellapsed:", (time() - start) * 1000)
         datas.append(data)
 
     data = collate(datas, samples_per_gpu=len(imgs))
@@ -219,7 +222,8 @@ def show_result_pyplot(model,
                        result,
                        score_thr=0.3,
                        title='result',
-                       wait_time=0):
+                       wait_time=0,
+                       out_file=None):
     """Visualize the detection results on the image.
 
     Args:
@@ -242,4 +246,5 @@ def show_result_pyplot(model,
         wait_time=wait_time,
         win_name=title,
         bbox_color=(72, 101, 241),
-        text_color=(72, 101, 241))
+        text_color=(72, 101, 241),
+        out_file=out_file)

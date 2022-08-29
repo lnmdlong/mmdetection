@@ -147,7 +147,9 @@ def merge_aug_masks(aug_masks, img_metas, rcnn_test_cfg, weights=None):
         recovered_masks.append(mask)
 
     if weights is None:
-        merged_masks = np.mean(recovered_masks, axis=0)
+        # merged_masks = np.mean(recovered_masks, axis=0)
+        tmp = sum(recovered_masks) / len(recovered_masks)
+        merged_masks = tmp.cpu().detach().numpy()
     else:
         merged_masks = np.average(
             np.array(recovered_masks), axis=0, weights=np.array(weights))

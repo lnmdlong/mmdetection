@@ -6,6 +6,7 @@ import torch
 from ..builder import DETECTORS, build_backbone, build_head, build_neck
 from .base import BaseDetector
 
+tiacc_time_count = True
 
 @DETECTORS.register_module()
 class TwoStageDetector(BaseDetector):
@@ -64,16 +65,20 @@ class TwoStageDetector(BaseDetector):
 
     def extract_feat(self, img):
         """Directly extract features from the backbone+neck."""
-        from time import time
-        start = time()
-        x = self.backbone(img)
-        torch.cuda.synchronize()
-        print("mmdet backbone time ellapsed:", (time() - start) * 1000)
-        if self.with_neck:
+        if tiacc_time_count:
+            from time import time
             start = time()
-            x = self.neck(x)
+        x = self.backbone(img)
+        if tiacc_time_count:
             torch.cuda.synchronize()
-            print("mmdet neck time ellapsed:", (time() - start) * 1000)
+            print("mmdet backbone time ellapsed:", (time() - start) * 1000)
+        if self.with_neck:
+            if tiacc_time_count:
+                start = time()
+            x = self.neck(x)
+            if tiacc_time_count:
+                torch.cuda.synchronize()
+                print("mmdet neck time ellapsed:", (time() - start) * 1000)
         return x
 
     def forward_dummy(self, img):
@@ -181,19 +186,24 @@ class TwoStageDetector(BaseDetector):
         """Test without augmentation."""
 
         assert self.with_bbox, 'Bbox head must be implemented.'
+        from time import time
         x = self.extract_feat(img)
-        start = time()
+        if tiacc_time_count:
+            start = time()
         if proposals is None:
             proposal_list = self.rpn_head.simple_test_rpn(x, img_metas)
         else:
             proposal_list = proposals
-        torch.cuda.synchronize()
-        print("mmdet rpn time ellapsed:", (time() - start) * 1000)
+        if tiacc_time_count:
+            torch.cuda.synchronize()
+            print("mmdet rpn time ellapsed:", (time() - start) * 1000)
 
-        start = time()
+        if tiacc_time_count:
+            start = time()
         result = self.roi_head.simple_test(
             x, proposal_list, img_metas, rescale=rescale)
-        print("mmdet roi time ellapsed:", (time() - start) * 1000)
+        if tiacc_time_count:
+            print("mmdet roi time ellapsed:", (time() - start) * 1000)
 
         return result
 
