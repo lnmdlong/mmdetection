@@ -18,6 +18,7 @@ BYTES_PER_FLOAT = 4
 # determine it based on available resources.
 GPU_MEM_LIMIT = 1024**3  # 1 GB memory limit
 
+tiacc_time_count = True
 
 @HEADS.register_module()
 class FCNMaskHead(BaseModule):
@@ -289,6 +290,9 @@ class FCNMaskHead(BaseModule):
         if not self.class_agnostic:
             mask_pred = mask_pred[range(N), labels][:, None]
 
+        if tiacc_time_count:
+            from time import time
+            start = time()
         for inds in chunks:
             masks_chunk, spatial_inds = _do_paste_mask(
                 mask_pred[inds],
@@ -304,9 +308,15 @@ class FCNMaskHead(BaseModule):
                 masks_chunk = (masks_chunk * 255).to(dtype=torch.uint8)
 
             im_mask[(inds, ) + spatial_inds] = masks_chunk
+        if tiacc_time_count:
+            print('fcn mask head _do_paste_mask time:', (time() - start) * 1000)
 
+        if tiacc_time_count:
+            start = time()
         for i in range(N):
             cls_segms[labels[i]].append(im_mask[i].detach().cpu().numpy())
+        if tiacc_time_count:
+            print('fcn mask head mask-to-cpu time:', (time() - start) * 1000)
         return cls_segms
 
     def onnx_export(self, mask_pred, det_bboxes, det_labels, rcnn_test_cfg,

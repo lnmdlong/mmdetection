@@ -116,6 +116,7 @@ def inference_detector(model, imgs):
 
     cfg.data.test.pipeline = replace_ImageToTensor(cfg.data.test.pipeline)
     test_pipeline = Compose(cfg.data.test.pipeline)
+    print('mmdet test_pipeline:', test_pipeline)
 
     from time import time
     datas = []
