@@ -5,6 +5,7 @@ from mmcv.utils import build_from_cfg
 
 from ..builder import PIPELINES
 
+tiacc_time_count = True
 
 @PIPELINES.register_module()
 class Compose:
@@ -38,9 +39,14 @@ class Compose:
         """
 
         for t in self.transforms:
+            if tiacc_time_count:
+                from time import time
+                start = time()
             data = t(data)
             if data is None:
                 return None
+            if tiacc_time_count:
+                print(f'transfrom {t} time ellapsed:', (time() - start) * 1000)
         return data
 
     def __repr__(self):
