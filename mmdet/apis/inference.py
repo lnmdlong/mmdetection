@@ -86,6 +86,25 @@ class LoadImage:
         results['ori_shape'] = img.shape
         return results
 
+def seg_result_post_process(pre_results, img_h, img_w):
+    bbox_result, segm_result = pre_results[0]
+    new_segm_result = []
+    for class_idx, class_segm_result in enumerate(segm_result):
+        new_class_segm_result = []
+        for mask_idx, mask in enumerate(class_segm_result):
+            x0 = max((int)(bbox_result[class_idx][mask_idx][1]), 0)
+            x1 = min((int)(bbox_result[class_idx][mask_idx][3]), img_h)
+            y0 = max((int)(bbox_result[class_idx][mask_idx][0]), 0)
+            y1 = min((int)(bbox_result[class_idx][mask_idx][2]), img_w)
+            img_mask_result = np.zeros((img_h, img_w), dtype=bool)
+            if x1 >= x0 and y1 >= y0:
+                img_mask_result[x0 : x1, y0 : y1] = mask[:, :, 0 : x1 - x0, 0: y1 - y0]
+            new_class_segm_result.append(img_mask_result)
+        new_segm_result.append(new_class_segm_result)
+
+    results = []
+    results.append((bbox_result, new_segm_result))
+    return results
 
 def inference_detector(model, imgs):
     """Inference image(s) with the detector.
@@ -153,7 +172,9 @@ def inference_detector(model, imgs):
     with torch.no_grad():
         start = time()
         results = model(return_loss=False, rescale=True, **data)
+        # pre_results = model(return_loss=False, rescale=True, **data)
         print("mmdet model time ellapsed:", (time() - start) * 1000)
+        # results = seg_result_post_process(pre_results, data['img_metas'][0][0]['ori_shape'][0], data['img_metas'][0][0]['ori_shape'][1])
 
     if not is_batch:
         return results[0]

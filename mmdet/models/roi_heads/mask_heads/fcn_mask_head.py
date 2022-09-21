@@ -257,6 +257,38 @@ class FCNMaskHead(BaseModule):
             img_w = np.round(ori_shape[1] * w_scale.item()).astype(np.int32)
 
         N = len(mask_pred)
+
+        # change mask output
+        opt_test = True
+        if opt_test:
+            if tiacc_time_count:
+                from time import time
+                start = time()
+            N = len(mask_pred)
+            if not self.class_agnostic:
+                mask_pred = mask_pred[range(N), labels][:, None]
+            threshold = rcnn_test_cfg.mask_thr_binary
+            out_mask = []
+            bboxes_cpu = bboxes.cpu().int()
+            for i in range(N):
+                x0 = max((int)(bboxes_cpu[i][1]), 0)
+                x1 = min((int)(bboxes_cpu[i][3]), img_h)
+                y0 = max((int)(bboxes_cpu[i][0]), 0)
+                y1 = min((int)(bboxes_cpu[i][2]), img_w)
+                bbox_w = x1 - x0
+                bbox_h = y1 - y0
+                import torchvision.transforms as T
+                out_mask.append(T.Resize((bbox_w, bbox_h))(torch.unsqueeze(mask_pred[i], 0)))
+                if threshold >= 0:
+                    out_mask[i] = (out_mask[i] >= threshold).to(dtype=torch.bool)
+                else:
+                    out_mask[i] = (out_mask[i] * 255).to(dtype=torch.uint8)
+            for i in range(N):
+                cls_segms[labels[i]].append(out_mask[i].detach().cpu().numpy())
+            if tiacc_time_count:
+                print("get_seg_masks opt fcn mask head time:", (time() - start) * 1000)
+            return cls_segms
+
         # The actual implementation split the input into chunks,
         # and paste them chunk by chunk.
         if device.type == 'cpu':
