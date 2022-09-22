@@ -259,7 +259,7 @@ class FCNMaskHead(BaseModule):
         N = len(mask_pred)
 
         # change mask output
-        opt_test = True
+        opt_test = False
         if opt_test:
             if tiacc_time_count:
                 from time import time
